@@ -116,6 +116,10 @@ if [[ -d ${WORKDIR}/obj-gfortran ]]; then
     ln -s ${WORKDIR}/obj-gfortran .
     cp -p ${WORKDIR}/pwg*.dat .
 fi
+### For EPPS16 nPDF process
+if [ -e  ${WORKDIR}/EPPS16NLOR_208 ]; then
+    cp -p ${WORKDIR}/EPPS16NLOR_208 .
+fi
 
 if [[ ! -e ${card} ]]; then
  fail_exit "powheg.input not found!"

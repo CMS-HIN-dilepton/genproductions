@@ -18,6 +18,7 @@ Example of usage for 4F:  python make_rwl.py 0 320900
 
 is5FlavorScheme = str(sys.argv[1])
 CentralPDF = str(sys.argv[2])
+isnPDF = 0 if len(sys.argv) < 4 else str(sys.argv[3])
 
 # is5FlavorScheme = True
 # CentralPDF = 306000
@@ -148,6 +149,18 @@ for key, pdfsets in sorted(pdf_sets.iteritems()):
     for idx in range(pdf_member_start, pdf_member_end) :
       fout.write("<weight id='"+str(m_idx)+"'> lhapdf="+str(idx)+" </weight>\n")
       m_idx = m_idx + 1
+  fout.write("</weightgroup>\n")
+
+if int(isnPDF) > 0:
+  # Nuclear PDF variations
+  print 'weightgroup_name nPDF_variation combine hessian'
+  fout.write("<weightgroup name='nPDF_variation' combine='hessian' >\n")
+  print "pdf [4500, 1, 'EPPS16', 41]"
+  m_idx = 4500
+  for idx in range(1, 42) :
+    fout.write("<weight id='"+str(m_idx)+"'> lhapdf="+str(CentralPDF)+" nPDFerrSet="+str(idx)+" </weight>\n")
+    m_idx = m_idx + 1
+  fout.write("<weight id='4600'> lhapdf="+str(CentralPDF)+" nPDFerrSet=0 </weight>\n")
   fout.write("</weightgroup>\n")
 
 fout.write("</initrwgt>\n")

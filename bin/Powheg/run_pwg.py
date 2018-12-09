@@ -81,6 +81,9 @@ def prepareJob(tag, i, folderName) :
     f.write ('  cp -pr ' + rootfolder + '/' + folderName + '/obj-gfortran/proclib  ./obj-gfortran/' + '\n')
     f.write ('  cp -pr ' + rootfolder + '/' + folderName + '/obj-gfortran/*.so  ./obj-gfortran/' + '\n')
     f.write ('fi    \n')
+    f.write ('if [ -f '+ rootfolder + '/' + folderName + '/EPPS16NLOR_208 ]; then    \n')
+    f.write ('  cp -p ' + rootfolder + '/' + folderName + '/EPPS16NLOR_208  ./' + '\n')
+    f.write ('fi    \n')
 
     f.write('\n')
 
@@ -104,6 +107,9 @@ def prepareJobForEvents (tag, i, folderName, EOSfolder) :
     f.write ('  cp -pr ' + rootfolder + '/' + folderName + '/obj-gfortran/proclib  ./obj-gfortran/' + '\n')
     f.write ('  cp -pr ' + rootfolder + '/' + folderName + '/obj-gfortran/*.so  ./obj-gfortran/' + '\n')
     f.write ('fi    \n')
+    f.write ('if [ -f '+ rootfolder + '/' + folderName + '/EPPS16NLOR_208 ]; then    \n')
+    f.write ('  cp -p ' + rootfolder + '/' + folderName + '/EPPS16NLOR_208  ./' + '\n')
+    f.write ('fi    \n')
 
     f.write ('cd -' + '\n')
 
@@ -111,6 +117,7 @@ def prepareJobForEvents (tag, i, folderName, EOSfolder) :
     f.write ('ls' + '\n')
     f.write ('echo ' + str (i) + ' | ' + rootfolder + '/pwhg_main &> log_' + tag + '.log ' + '\n')
     f.write ('cp -p log_' + tag + '.log ' + rootfolder + '/' + folderName + '/. \n')
+    f.write ('if [ -f EPPS16NLOR_208 ]; then rm -f EPPS16NLOR_208; fi \n')
     #lhefilename = 'pwgevents-{:04d}.lhe'.format(i) 
 
     #f.write ('cmsStage ' + lhefilename + ' /store/user/govoni/LHE/powheg/' + EOSfolder + '/\n')
@@ -170,6 +177,7 @@ def runParallelXgrid(parstage, xgrid, folderName, nEvents, njobs, powInputName, 
         f.write('cp -p *.top ' + rootfolder + '/' + folderName + '/. \n')
         f.write('cp -p *.dat ' + rootfolder + '/' + folderName + '/. \n')
         f.write('cp -p *.log ' + rootfolder + '/' + folderName + '/. \n')
+        f.write ('if [ -f EPPS16NLOR_208 ]; then rm -f EPPS16NLOR_208; fi \n')
 
         f.close()
 
@@ -319,13 +327,12 @@ fi
 
 # 5F
 is5FlavorScheme=1
-defaultPDF=306000
+defaultPDF=$(sed -n 's/lhans1*//p' powheg.input | grep -o -E '[0-9]+' | head -1)
 
 
 if [[ "$process" == "ST_tch_4f" ]] || [[ "$process" == "bbH" ]] || [[ "$process" == "Wbb_dec" ]] || [[ "$process" == "Wbbj" ]] || [[ "$process" == "WWJ" ]]; then
     # 4F
     is5FlavorScheme=0
-    defaultPDF=320900
 fi
 
 if [[ $is5FlavorScheme -eq 1 ]]; then
@@ -335,7 +342,11 @@ else
 fi
 
 cd $WORKDIR
-python make_rwl.py ${is5FlavorScheme} ${defaultPDF}
+if (grep -qE 'ia1 |ia2 ' ${name}/powheg.input) && (grep -q 'nPDFerrSet' ${name}/powheg.input); then
+  python make_rwl.py ${is5FlavorScheme} ${defaultPDF} 1
+else
+  python make_rwl.py ${is5FlavorScheme} ${defaultPDF}
+fi
 cd ${name}
 
 if [ -s ../JHUGen.input ]; then
@@ -409,6 +420,19 @@ if [ "$process" = "WWJ" ]; then
     cp ${WORKDIR}/patches/rwl_write_weights2_extra.f POWHEG-BOX/$process/
 fi
 
+# Update POWHEG for nuclear PDF
+if grep -qE 'ia1 |ia2 ' powheg.input; then
+    patch -l -p0 -i ${WORKDIR}/patches/nPDF.patch
+    if [ "$process" = "hvq" ]; then
+        patch -l -p0 -i ${WORKDIR}/patches/ttdec_nPDF.patch
+    fi
+    if (grep -q 'nPDFerrSet' powheg.input) && [ ! -f EPPS16NLOR_208 ]; then
+        wget --no-verbose http://users.jyu.fi/~kaeskola/EPPS16/EPPS16NLOR_208 || fail_exit "Failed to get EPPS16NLOR_208"
+    fi
+    if [ ! -f POWHEG-BOX/${process}/EPPS16.f ]; then
+        wget --no-verbose http://users.jyu.fi/~kaeskola/EPPS16/EPPS16.f -P POWHEG-BOX/${process} || fail_exit "Failed to get EPPS16.f"
+    fi
+fi
 
 sed -i -e "s#500#1200#g"  POWHEG-BOX/include/pwhg_rwl.h
 
@@ -547,6 +571,9 @@ if [ "$process" = "Wgamma" ]; then
   echo "PWHGANAL=$BOOK_HISTO pwhg_analysis-dummy.o uti.o " >> tmpfile
 else
   echo "PWHGANAL=$BOOK_HISTO pwhg_analysis-dummy.o " >> tmpfile
+fi
+if grep -qE 'ia1 |ia2 ' ${WORKDIR}/${name}/powheg.input; then
+  sed -i "s/PWHGANAL=/PWHGANAL=EPPS16.o /g" tmpfile
 fi
 echo "LHAPDF_CONFIG=${LHAPDF_BASE}/bin/lhapdf-config" >> tmpfile
 mv Makefile Makefile.interm
@@ -1099,7 +1126,7 @@ if __name__ == "__main__":
     parser.add_option('-s', '--rndSeed'       , dest="rndSeed",       default= '42',           help='Starting random number seed [42]')
     parser.add_option('-m', '--prcName'       , dest="prcName",       default= 'DMGG',           help='POWHEG process name [DMGG]')
     parser.add_option('-k', '--keepTop'       , dest="keepTop",       default= '0',           help='Keep the validation top draw plots [0]')
-    parser.add_option('-d', '--noPdfCheck'    , dest="noPdfCheck",    default= '0',           help='If 1, deactivate automatic PDF check [0]')
+    parser.add_option('-d', '--noPdfCheck'    , dest="noPdfCheck",    default= '1',           help='If 1, deactivate automatic PDF check [0]')
 
     # args = parser.parse_args ()
     (args, opts) = parser.parse_args(sys.argv)

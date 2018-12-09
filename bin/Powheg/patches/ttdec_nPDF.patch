@@ -1,0 +1,30 @@
+--- POWHEG-BOX/hvq/ttdec.f	2018-12-07 19:07:42.000000001 +0100
++++ POWHEG-BOX-MOD/hvq/ttdec.f	2018-12-07 19:10:18.000000001 +0100
+@@ -506,11 +506,13 @@
+       real * 8 fx(-6:6)
+       real * 8 powheginput
+       external powheginput
+-      integer ndns(2),ipart(2),ih(2),k
++      integer ndns(2),ipart(2),ih(2),ia(2),k
+       ndns(1)=pdf_ndns1
+       ndns(2)=pdf_ndns2
+       ih(1)=pdf_ih1
+       ih(2)=pdf_ih2
++      ia(1)=npdf_ia1
++      ia(2)=npdf_ia2
+ c Factorization scale (relay on 5 being the light parton)
+       if(nup.eq.4) then
+          mufc2=5d0
+@@ -546,10 +548,10 @@
+       enddo
+       r=1
+       do k=1,2
+-         call genericpdf(ndns(k),ih(k),mufc2,x(k),fx)
++         call genericpdf(ndns(k),ih(k),npdf_set,ia(k),mufc2,x(k),fx)
+          if(fx(ipart(k)).ne.0) then
+             r=r/fx(ipart(k))
+-            call genericpdf(ndns(k),ih(k),mufc2,xc(k),fx)
++            call genericpdf(ndns(k),ih(k),npdf_set,ia(k),mufc2,xc(k),fx)
+             r=r*fx(ipart(k))
+          endif
+       enddo

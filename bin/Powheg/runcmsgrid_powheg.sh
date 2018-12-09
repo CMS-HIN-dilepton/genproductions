@@ -123,6 +123,10 @@ if [[ -d ${WORKDIR}/WW_MATRIX ]]; then
     ln -s ${WORKDIR}/WW_MINLO .
     cp -p ${WORKDIR}/binvalues-WW.top .
 fi
+### For EPPS16 nPDF process
+if [ -e  ${WORKDIR}/EPPS16NLOR_208 ]; then
+    cp -p ${WORKDIR}/EPPS16NLOR_208 .
+fi
 
 if [[ ! -e ${card} ]]; then
  fail_exit "powheg.input not found!"
